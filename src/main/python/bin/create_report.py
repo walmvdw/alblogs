@@ -12,11 +12,11 @@ from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, 
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.enums import TA_RIGHT, TA_LEFT, TA_CENTER
 from reportlab.pdfgen import canvas
-from reportlab.pdfbase.pdfmetrics import stringWidth
 
 LOGGER = None
 
 DEFAULT_FONT = "Helvetica"
+DEFAULT_FONT_BOLD = "Helvetica-Bold"
 
 
 class FooterCanvas(canvas.Canvas):
@@ -42,7 +42,8 @@ class FooterCanvas(canvas.Canvas):
         self.setLineWidth(0.5)
         self.line(1*cm, A4[0] - 1*cm, A4[1] - (1*cm), A4[0] - 1*cm)
         self.setFont(DEFAULT_FONT, 10)
-        self.drawString(1 * cm, A4[0] - (0.90*cm), "Application Load Balancer Log")
+        self.drawString(1 * cm, A4[0] - (0.90*cm), "Application Load Balancer Statistics")
+        self.drawRightString(A4[1] - (1*cm), A4[0] - (0.90*cm), "Logs for date: {}".format(args.date))
 
     def _draw_footer(self, page_count):
         page = "Page %s of %s" % (self._pageNumber, page_count)
@@ -203,6 +204,7 @@ def define_target_table_style():
 
     table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
     table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -2), 0.4 * mm, colors.black)
 
     # Header row
     table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
@@ -213,6 +215,30 @@ def define_target_table_style():
 
     table_style.add('SPAN', (1, 0), (2, 0))
     table_style.add('SPAN', (3, 0), (4, 0))
+
+    return table_style
+
+
+def define_totals_table_style():
+    table_style = TableStyle()
+
+    # All rows
+    table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
+
+    table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -2), 0.4 * mm, colors.black)
+
+    # Header column
+    table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 0), (-1, 0), 0.4 * mm, colors.black)
+
+    table_style.add('BACKGROUND', (0, 0), (1, 0), colors.black)
+    #table_style.add('BACKGROUND', (0, 0), (0, -1), colors.black)
+
+    table_style.add('SPAN', (0, 0), (1, 0))
 
     return table_style
 
@@ -247,6 +273,7 @@ def define_paragraph_styles():
     styles["table_header_right"] = ParagraphStyle('table_header_right', fontName=DEFAULT_FONT, fontSize=8, textColor=colors.white, alignment=TA_RIGHT)
     styles["table_data_left"] = ParagraphStyle('table_data_left', fontName=DEFAULT_FONT, fontSize=8, textColor=colors.black, backColor=colors.white, alignment=TA_LEFT)
     styles["table_data_right"] = ParagraphStyle('table_data_right', fontName=DEFAULT_FONT, fontSize=8, textColor=colors.black, backColor=colors.white, alignment=TA_RIGHT)
+    styles["table_data_right_bold"] = ParagraphStyle('table_data_right', fontName=DEFAULT_FONT_BOLD, fontSize=8, textColor=colors.black, backColor=colors.white, alignment=TA_RIGHT)
 
     return styles
 
@@ -260,28 +287,44 @@ def generate_target_table(styles, target_addresses, chart_data):
     header_row1.append("")
     header_row2.append(Paragraph("Hour", styles["table_header_center"]))
 
+    totals = {}
+
     for target_address in target_addresses:
         header_row1.append(Paragraph("{}".format(target_address), styles["table_header_center"]))
         header_row1.append("")
 
         header_row2.append(Paragraph("Count", styles["table_header_center"]))
         header_row2.append(Paragraph("%", styles["table_header_center"]))
+        totals[target_address] = 0
 
     table_data.append(header_row1)
     table_data.append(header_row2)
 
+    total_count = 0
     for hour in chart_data["hours"]:
         table_row = []
         table_row.append(Paragraph("{}".format(hour), styles["table_data_right"]))
 
         for target_address in target_addresses:
+            totals[target_address] += chart_data["targets_val"][target_address][hour]
+            total_count += chart_data["targets_val"][target_address][hour]
             table_row.append(
                 Paragraph("{:d}".format(chart_data["targets_val"][target_address][hour]), styles["table_data_right"]))
             table_row.append(Paragraph("{:0.2f}".format(chart_data["targets_pct"][target_address][hour]),
                                        styles["table_data_right"]))
         table_data.append(table_row)
 
-    t = Table(table_data, colWidths=[1.1 * cm, 1.5 * cm, 1.5 * cm, 1.5 * cm, 1.5 * cm])
+    last_row = []
+    last_row.append(Paragraph("TOT", styles["table_data_right_bold"]))
+
+    for target_address in target_addresses:
+        last_row.append(Paragraph("{:d}".format(totals[target_address]),  styles["table_data_right_bold"]))
+        pct = (float(totals[target_address]) / float(total_count)) * 100.0
+        last_row.append(Paragraph("{:0.2f}".format(pct),  styles["table_data_right_bold"]))
+
+    table_data.append(last_row)
+
+    t = Table(table_data, colWidths=[1.1 * cm, 1.7 * cm, 1.7 * cm, 1.7 * cm, 1.7 * cm])
     t.setStyle(define_target_table_style())
 
     return t
@@ -428,6 +471,29 @@ def generate_url_top100_table(styles, url_stats):
     return t
 
 
+def generate_totals_table(styles, totals):
+    table_rows = []
+
+    table_row = []
+    table_row.append(Paragraph("Total requests", styles["table_header_center"]))
+    table_row.append(Paragraph("", style=styles["table_data_right"]))
+    table_rows.append(table_row)
+
+    table_row = []
+    table_row.append(Paragraph("Request count", styles["table_data_left"]))
+    table_row.append(Paragraph("{:d}".format(day_totals["count"]), style=styles["table_data_right"]))
+    table_rows.append(table_row)
+
+    table_row = []
+    table_row.append(Paragraph("Procesing time", styles["table_data_left"]))
+    table_row.append(Paragraph("{:0.0f}".format(day_totals["time"]), style=styles["table_data_right"]))
+    table_rows.append(table_row)
+
+    t = Table(table_rows, colWidths=[2.5 * cm, 2 * cm])
+    t.setStyle(define_totals_table_style())
+
+    return t
+
 # ------------------------------ MAIN PROGRAM ------------------------------
 
 
@@ -481,15 +547,26 @@ elements.append(page_table)
 
 elements.append(PageBreak())
 elements.append(Paragraph("Top 10 requests by total request count", styles["table_title"]))
-elements.append(Spacer(1, 2*cm))
+elements.append(Spacer(1, 0.5*cm))
+
+totals_table = generate_totals_table(styles, day_totals)
+elements.append(totals_table)
+
+elements.append(Spacer(1, 0.5*cm))
 
 url_count_stats = get_top_10_by_count_stats(statsdb, args.date)
 url_count_table = generate_url_count_table(styles, url_count_stats)
+
 elements.append(url_count_table)
 
 elements.append(PageBreak())
 elements.append(Paragraph("Top 10 requests by total processing time", styles["table_title"]))
-elements.append(Spacer(1, 2*cm))
+elements.append(Spacer(1, 0.5*cm))
+
+totals_table = generate_totals_table(styles, day_totals)
+elements.append(totals_table)
+
+elements.append(Spacer(1, 0.5*cm))
 
 url_time_stats = get_top_10_by_time_stats(statsdb, args.date)
 url_time_table = generate_url_time_table(styles, url_time_stats)
@@ -497,7 +574,7 @@ elements.append(url_time_table)
 
 elements.append(PageBreak())
 elements.append(Paragraph("Top 100 requests by average processing time", styles["table_title"]))
-elements.append(Spacer(1, 2*cm))
+elements.append(Spacer(1, 0.5*cm))
 
 url_top100_stats = get_top_100_average_processing_time_stats(statsdb, args.date)
 url_top100_table = generate_url_top100_table(styles, url_top100_stats)
