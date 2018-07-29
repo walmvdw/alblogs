@@ -76,3 +76,6 @@ class Configuration(object):
     def get_srclogs_dir(self):
         return self.get_value("directories.srclogs")
 
+    def get_archive_dir(self):
+        return self.get_value("directories.archive")
+
