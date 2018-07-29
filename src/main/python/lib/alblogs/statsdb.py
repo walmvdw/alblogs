@@ -11,26 +11,21 @@ sql += ",                         `log_hour_id` "
 sql += ",                         `log_url_id` "
 sql += ",                         `request_count` "
 sql += ",                         `sum_request_processing_time_sec` "
-sql += ",                         `avg_request_processing_time_sec` "
 sql += ",                         `min_request_processing_time_sec` "
 sql += ",                         `max_request_processing_time_sec` "
 sql += ",                         `sum_target_processing_time_sec` "
-sql += ",                         `avg_target_processing_time_sec` "
 sql += ",                         `min_target_processing_time_sec` "
 sql += ",                         `max_target_processing_time_sec` "
 sql += ",                         `sum_response_processing_time_sec` "
-sql += ",                         `avg_response_processing_time_sec` "
 sql += ",                         `min_response_processing_time_sec` "
 sql += ",                         `max_response_processing_time_sec` "
 sql += ",                         `sum_received_bytes` "
-sql += ",                         `avg_received_bytes` "
 sql += ",                         `min_received_bytes` "
 sql += ",                         `max_received_bytes` "
 sql += ",                         `sum_sent_bytes` "
-sql += ",                         `avg_sent_bytes` "
 sql += ",                         `min_sent_bytes` "
 sql += ",                         `max_sent_bytes` "
-sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
 STATS_URL_INSERT_SQL = sql
 
@@ -42,26 +37,21 @@ sql += ",                         `log_target_address_id` "
 sql += ",                         `target_port` "
 sql += ",                         `request_count` "
 sql += ",                         `sum_request_processing_time_sec` "
-sql += ",                         `avg_request_processing_time_sec` "
 sql += ",                         `min_request_processing_time_sec` "
 sql += ",                         `max_request_processing_time_sec` "
 sql += ",                         `sum_target_processing_time_sec` "
-sql += ",                         `avg_target_processing_time_sec` "
 sql += ",                         `min_target_processing_time_sec` "
 sql += ",                         `max_target_processing_time_sec` "
 sql += ",                         `sum_response_processing_time_sec` "
-sql += ",                         `avg_response_processing_time_sec` "
 sql += ",                         `min_response_processing_time_sec` "
 sql += ",                         `max_response_processing_time_sec` "
 sql += ",                         `sum_received_bytes` "
-sql += ",                         `avg_received_bytes` "
 sql += ",                         `min_received_bytes` "
 sql += ",                         `max_received_bytes` "
 sql += ",                         `sum_sent_bytes` "
-sql += ",                         `avg_sent_bytes` "
 sql += ",                         `min_sent_bytes` "
 sql += ",                         `max_sent_bytes` "
-sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
 STATS_TARGET_ADDRESS_INSERT_SQL = sql
 
@@ -233,23 +223,18 @@ class Database(object):
         sql += ",                         `log_url_id` INTEGER "
         sql += ",                         `request_count` INTEGER "
         sql += ",                         `sum_request_processing_time_sec` REAL "
-        sql += ",                         `avg_request_processing_time_sec` REAL "
         sql += ",                         `min_request_processing_time_sec` REAL "
         sql += ",                         `max_request_processing_time_sec` REAL "
         sql += ",                         `sum_target_processing_time_sec` REAL "
-        sql += ",                         `avg_target_processing_time_sec` REAL "
         sql += ",                         `min_target_processing_time_sec` REAL "
         sql += ",                         `max_target_processing_time_sec` REAL "
         sql += ",                         `sum_response_processing_time_sec` REAL "
         sql += ",                         `min_response_processing_time_sec` REAL "
         sql += ",                         `max_response_processing_time_sec` REAL "
-        sql += ",                         `avg_response_processing_time_sec` REAL "
         sql += ",                         `sum_received_bytes` INTEGER "
         sql += ",                         `min_received_bytes` INTEGER "
         sql += ",                         `max_received_bytes` INTEGER "
-        sql += ",                         `avg_received_bytes` INTEGER "
         sql += ",                         `sum_sent_bytes` INTEGER "
-        sql += ",                         `avg_sent_bytes` INTEGER "
         sql += ",                         `min_sent_bytes` INTEGER "
         sql += ",                         `max_sent_bytes` INTEGER "
         sql += ");"
@@ -263,23 +248,18 @@ class Database(object):
         sql += ",                         `target_port` INTEGER "
         sql += ",                         `request_count` INTEGER "
         sql += ",                         `sum_request_processing_time_sec` REAL "
-        sql += ",                         `avg_request_processing_time_sec` REAL "
         sql += ",                         `min_request_processing_time_sec` REAL "
         sql += ",                         `max_request_processing_time_sec` REAL "
         sql += ",                         `sum_target_processing_time_sec` REAL "
-        sql += ",                         `avg_target_processing_time_sec` REAL "
         sql += ",                         `min_target_processing_time_sec` REAL "
         sql += ",                         `max_target_processing_time_sec` REAL "
         sql += ",                         `sum_response_processing_time_sec` REAL "
         sql += ",                         `min_response_processing_time_sec` REAL "
         sql += ",                         `max_response_processing_time_sec` REAL "
-        sql += ",                         `avg_response_processing_time_sec` REAL "
         sql += ",                         `sum_received_bytes` INTEGER "
         sql += ",                         `min_received_bytes` INTEGER "
         sql += ",                         `max_received_bytes` INTEGER "
-        sql += ",                         `avg_received_bytes` INTEGER "
         sql += ",                         `sum_sent_bytes` INTEGER "
-        sql += ",                         `avg_sent_bytes` INTEGER "
         sql += ",                         `min_sent_bytes` INTEGER "
         sql += ",                         `max_sent_bytes` INTEGER "
         sql += ");"
@@ -363,23 +343,18 @@ class Database(object):
         self._get_cursor().execute(STATS_URL_INSERT_SQL, (log_date_id, log_hour_id, log_url_id,
                                    record["request_count"],
                                    record["sum_request_processing_time_sec"],
-                                   record["avg_request_processing_time_sec"],
                                    record["min_request_processing_time_sec"],
                                    record["max_request_processing_time_sec"],
                                    record["sum_target_processing_time_sec"],
-                                   record["avg_target_processing_time_sec"],
                                    record["min_target_processing_time_sec"],
                                    record["max_target_processing_time_sec"],
                                    record["sum_response_processing_time_sec"],
-                                   record["avg_response_processing_time_sec"],
                                    record["min_response_processing_time_sec"],
                                    record["max_response_processing_time_sec"],
                                    record["sum_received_bytes"],
-                                   record["avg_received_bytes"],
                                    record["min_received_bytes"],
                                    record["max_received_bytes"],
                                    record["sum_sent_bytes"],
-                                   record["avg_sent_bytes"],
                                    record["min_sent_bytes"],
                                    record["max_sent_bytes"]))
 
@@ -392,23 +367,18 @@ class Database(object):
                                    record["target_port"],
                                    record["request_count"],
                                    record["sum_request_processing_time_sec"],
-                                   record["avg_request_processing_time_sec"],
                                    record["min_request_processing_time_sec"],
                                    record["max_request_processing_time_sec"],
                                    record["sum_target_processing_time_sec"],
-                                   record["avg_target_processing_time_sec"],
                                    record["min_target_processing_time_sec"],
                                    record["max_target_processing_time_sec"],
                                    record["sum_response_processing_time_sec"],
-                                   record["avg_response_processing_time_sec"],
                                    record["min_response_processing_time_sec"],
                                    record["max_response_processing_time_sec"],
                                    record["sum_received_bytes"],
-                                   record["avg_received_bytes"],
                                    record["min_received_bytes"],
                                    record["max_received_bytes"],
                                    record["sum_sent_bytes"],
-                                   record["avg_sent_bytes"],
                                    record["min_sent_bytes"],
                                    record["max_sent_bytes"]))
 
