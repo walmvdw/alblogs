@@ -436,3 +436,43 @@ class Database(object):
         get_log().info("END: Executing query_target_stats")
 
         return result
+
+    def query_status_code_stats(self):
+        sql = """SELECT   `ety`.`target_status_code` `target_status_code`
+                 ,        `ety`.`elb_status_code` `elb_status_code`
+                 ,        `dte`.`date` `date`
+                 ,        `hr`.`hour`  `hour`
+                 ,        COUNT(*)     `request_count`
+                 ,        SUM(`request_processing_time_sec`) `sum_request_processing_time_sec`
+                 ,        MIN(`request_processing_time_sec`) `min_request_processing_time_sec`
+                 ,        MAX(`request_processing_time_sec`) `max_request_processing_time_sec`
+                 ,        SUM(`target_processing_time_sec`) `sum_target_processing_time_sec`
+                 ,        MIN(`target_processing_time_sec`) `min_target_processing_time_sec`
+                 ,        MAX(`target_processing_time_sec`) `max_target_processing_time_sec`
+                 ,        SUM(`response_processing_time_sec`) `sum_response_processing_time_sec`
+                 ,        MIN(`response_processing_time_sec`) `min_response_processing_time_sec`
+                 ,        MAX(`response_processing_time_sec`) `max_response_processing_time_sec`
+                 ,        SUM(`received_bytes`) `sum_received_bytes`
+                 ,        MIN(`received_bytes`) `min_received_bytes`
+                 ,        MAX(`received_bytes`) `max_received_bytes`
+                 ,        SUM(`sent_bytes`) `sum_sent_bytes`
+                 ,        MIN(`sent_bytes`) `min_sent_bytes`
+                 ,        MAX(`sent_bytes`) `max_sent_bytes`
+                 FROM     `log_date`  `dte`
+                 ,        `log_hour`  `hr`
+                 ,        `log_entry` `ety`
+                 WHERE    `dte`.`id` = `ety`.`log_date_id`
+                 AND      `hr`.`id`  = `ety`.`log_hour_id`
+                 GROUP BY `ety`.`target_status_code`
+                 ,        `ety`.`elb_status_code`
+                 ,        `dte`.`date` 
+                 ,        `hr`.`hour`  
+              """
+
+        get_log().debug("query_status_code_stats: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_status_code_stats")
+        result = self._get_cursor().execute(sql)
+        get_log().info("END: Executing query_status_code_stats")
+
+        return result

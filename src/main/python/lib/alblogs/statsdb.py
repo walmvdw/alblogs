@@ -55,6 +55,32 @@ sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
 STATS_TARGET_ADDRESS_INSERT_SQL = sql
 
+sql = ""
+sql += "INSERT INTO `stats_status_code`  "
+sql += "(                         `log_date_id` "
+sql += ",                         `log_hour_id` "
+sql += ",                         `target_status_code` "
+sql += ",                         `elb_status_code` "
+sql += ",                         `request_count` "
+sql += ",                         `sum_request_processing_time_sec` "
+sql += ",                         `min_request_processing_time_sec` "
+sql += ",                         `max_request_processing_time_sec` "
+sql += ",                         `sum_target_processing_time_sec` "
+sql += ",                         `min_target_processing_time_sec` "
+sql += ",                         `max_target_processing_time_sec` "
+sql += ",                         `sum_response_processing_time_sec` "
+sql += ",                         `min_response_processing_time_sec` "
+sql += ",                         `max_response_processing_time_sec` "
+sql += ",                         `sum_received_bytes` "
+sql += ",                         `min_received_bytes` "
+sql += ",                         `max_received_bytes` "
+sql += ",                         `sum_sent_bytes` "
+sql += ",                         `min_sent_bytes` "
+sql += ",                         `max_sent_bytes` "
+sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+
+STATS_STATUS_CODE_INSERT_SQL = sql
+
 
 def get_log():
     global LOGGER
@@ -265,6 +291,31 @@ class Database(object):
         sql += ");"
         curs.execute(sql)
 
+        sql = ""
+        sql += "CREATE TABLE `stats_status_code` (`id` INTEGER PRIMARY KEY "
+        sql += ",                         `log_date_id` INTEGER "
+        sql += ",                         `log_hour_id` INTEGER "
+        sql += ",                         `target_status_code` INTEGER "
+        sql += ",                         `elb_status_code` INTEGER "
+        sql += ",                         `request_count` INTEGER "
+        sql += ",                         `sum_request_processing_time_sec` REAL "
+        sql += ",                         `min_request_processing_time_sec` REAL "
+        sql += ",                         `max_request_processing_time_sec` REAL "
+        sql += ",                         `sum_target_processing_time_sec` REAL "
+        sql += ",                         `min_target_processing_time_sec` REAL "
+        sql += ",                         `max_target_processing_time_sec` REAL "
+        sql += ",                         `sum_response_processing_time_sec` REAL "
+        sql += ",                         `min_response_processing_time_sec` REAL "
+        sql += ",                         `max_response_processing_time_sec` REAL "
+        sql += ",                         `sum_received_bytes` INTEGER "
+        sql += ",                         `min_received_bytes` INTEGER "
+        sql += ",                         `max_received_bytes` INTEGER "
+        sql += ",                         `sum_sent_bytes` INTEGER "
+        sql += ",                         `min_sent_bytes` INTEGER "
+        sql += ",                         `max_sent_bytes` INTEGER "
+        sql += ");"
+        curs.execute(sql)
+
         self.commit()
 
     def _add_dimension(self, tablename, columname, value):
@@ -365,6 +416,30 @@ class Database(object):
 
         self._get_cursor().execute(STATS_TARGET_ADDRESS_INSERT_SQL, (log_date_id, log_hour_id, log_target_address_id,
                                    record["target_port"],
+                                   record["request_count"],
+                                   record["sum_request_processing_time_sec"],
+                                   record["min_request_processing_time_sec"],
+                                   record["max_request_processing_time_sec"],
+                                   record["sum_target_processing_time_sec"],
+                                   record["min_target_processing_time_sec"],
+                                   record["max_target_processing_time_sec"],
+                                   record["sum_response_processing_time_sec"],
+                                   record["min_response_processing_time_sec"],
+                                   record["max_response_processing_time_sec"],
+                                   record["sum_received_bytes"],
+                                   record["min_received_bytes"],
+                                   record["max_received_bytes"],
+                                   record["sum_sent_bytes"],
+                                   record["min_sent_bytes"],
+                                   record["max_sent_bytes"]))
+
+    def save_status_code_stats(self, record):
+        log_date_id = self.get_or_add_date(record["date"])
+        log_hour_id = self.get_or_add_hour(record["hour"])
+
+        self._get_cursor().execute(STATS_STATUS_CODE_INSERT_SQL, (log_date_id, log_hour_id,
+                                   record["target_status_code"],
+                                   record["elb_status_code"],
                                    record["request_count"],
                                    record["sum_request_processing_time_sec"],
                                    record["min_request_processing_time_sec"],
@@ -491,5 +566,29 @@ class Database(object):
         get_log().info("BEGIN: Executing query_top_10_url_by_time")
         result = self._get_cursor().execute(sql, (datestr, ))
         get_log().info("END: Executing query_top_10_url_by_time")
+
+        return result
+
+    def query_status_code(self, datestr):
+        sql = """select   `sts`.`elb_status_code` `elb_status_code`
+                 ,        `sts`.`target_status_code` `target_status_code`
+                 ,        sum(`sts`.`request_count`) `sum_request_count`
+                 ,        sum(`sts`.`sum_target_processing_time_sec`) `sum_target_processing_time`
+                 ,        sum(`sts`.`sum_target_processing_time_sec`) / sum(`sts`.`request_count`) `avg_target_processing_time`
+                 from     `stats_status_code` `sts`
+                 ,        `log_date` `dte`
+                 where    `dte`.`id` = `sts`.`log_date_id`
+                 and      `dte`.`date` = ?
+                 group by `sts`.`target_status_code` 
+                 ,        `sts`.`elb_status_code`
+                 order by `elb_status_code`
+                 ,        `target_status_code`
+              """
+
+        get_log().debug("query_status_code: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_status_code")
+        result = self._get_cursor().execute(sql, (datestr, ))
+        get_log().info("END: Executing query_status_code")
 
         return result

@@ -18,6 +18,7 @@ def read_arguments():
 
 
 def load_url_stats(logsdb, statsdb):
+    LOGGER.info("Processing URL stats")
     rows = logsdb.query_url_stats()
 
     for row in rows:
@@ -27,10 +28,21 @@ def load_url_stats(logsdb, statsdb):
 
 
 def load_target_address_stats(logsdb, statsdb):
+    LOGGER.info("Processing TARGET ADDRESS stats")
     rows = logsdb.query_target_address_stats()
 
     for row in rows:
         statsdb.save_target_address_stats(row)
+
+    statsdb.commit()
+
+
+def load_status_code_stats(logsdb, statsdb):
+    LOGGER.info("Processing STATUS CODE stats")
+    rows = logsdb.query_status_code_stats()
+
+    for row in rows:
+        statsdb.save_status_code_stats(row)
 
     statsdb.commit()
 
@@ -55,3 +67,4 @@ statsdb = alblogs.open_statsdb(statsdb_file, create=True)
 
 load_url_stats(logsdb, statsdb)
 load_target_address_stats(logsdb, statsdb)
+load_status_code_stats(logsdb, statsdb)

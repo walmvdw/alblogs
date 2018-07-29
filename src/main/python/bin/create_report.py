@@ -236,7 +236,6 @@ def define_totals_table_style():
     table_style.add('BOX', (0, 0), (-1, 0), 0.4 * mm, colors.black)
 
     table_style.add('BACKGROUND', (0, 0), (1, 0), colors.black)
-    #table_style.add('BACKGROUND', (0, 0), (0, -1), colors.black)
 
     table_style.add('SPAN', (0, 0), (1, 0))
 
@@ -254,6 +253,27 @@ def define_url_table_style():
     table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
     table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
     table_style.add('BOX', (0, 1), (-1, -2), 0.4 * mm, colors.black)
+
+    # Header row
+    table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 0), (-1, 0), 0.4 * mm, colors.black)
+
+    table_style.add('BACKGROUND', (0, 0), (-1, 0), colors.black)
+    table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
+
+    return table_style
+
+
+def define_avg_time_table_style():
+    table_style = TableStyle()
+
+    # All rows
+    table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
+
+    table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
 
     # Header row
     table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
@@ -371,6 +391,22 @@ def get_top_10_by_time_stats(statsdb, datestr):
     return url_stats
 
 
+def get_status_code_stats(statsdb, datestr):
+    status_code_stats_curs = statsdb.query_status_code(datestr)
+    status_code_stats = []
+
+    for row in status_code_stats_curs:
+        stats = {"elb_status_code": row["elb_status_code"],
+                 "target_status_code": row["target_status_code"],
+                 "sum_request_count": row["sum_request_count"],
+                 "sum_target_processing_time": row["sum_target_processing_time"],
+                 "avg_target_processing_time": row["avg_target_processing_time"]
+                 }
+        status_code_stats.append(stats)
+
+    return status_code_stats
+
+
 def get_top_100_average_processing_time_stats(statsdb, datestr):
     url_stats_curs = statsdb.query_top_100_average_processing_time(datestr)
     url_stats = []
@@ -426,6 +462,47 @@ def generate_url_count_table(styles, url_stats):
     table_data.append(last_row)
 
     t = Table(table_data)
+    t.setStyle(define_url_table_style())
+
+    return t
+
+
+def generate_status_code_table(styles, target_code_stats):
+    table_data = []
+    header_row = []
+    header_row.append(Paragraph("ELB Status", styles["table_header_center"]))
+    header_row.append(Paragraph("Target Status", styles["table_header_center"]))
+    header_row.append(Paragraph("Requests", styles["table_header_center"]))
+    header_row.append(Paragraph("Time (secs)", styles["table_header_center"]))
+    header_row.append(Paragraph("Avg Time", styles["table_header_center"]))
+
+    table_data.append(header_row)
+
+    totals = {"request_count": 0, "processing_time": 0}
+    for stats in target_code_stats:
+        print(stats)
+        totals["request_count"] += stats["sum_request_count"]
+        totals["processing_time"] += stats["sum_target_processing_time"]
+
+        data_row = []
+        data_row.append(Paragraph("{}".format(stats["elb_status_code"]), styles["table_data_left"]))
+        data_row.append(Paragraph("{}".format(stats["target_status_code"]), styles["table_data_left"]))
+        data_row.append(Paragraph("{:0,d}".format(stats["sum_request_count"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:0,.2f}".format(stats["sum_target_processing_time"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:0,.5f}".format(stats["avg_target_processing_time"]), styles["table_data_right"]))
+
+        table_data.append(data_row)
+
+    last_row = []
+    last_row.append("")
+    last_row.append(Paragraph("TOTAL", styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,d}".format(totals["request_count"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.0f}".format(totals["processing_time"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("", styles["table_data_right_bold"]))
+
+    table_data.append(last_row)
+
+    t = Table(table_data, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
     t.setStyle(define_url_table_style())
 
     return t
@@ -500,7 +577,7 @@ def generate_url_top100_table(styles, url_stats):
 
     colWidths = [1 * cm, A4[1] - (7*cm) - (2*cm), 2 * cm, 2 * cm, 2 * cm]
     t = Table(table_data, colWidths=colWidths, repeatRows=1)
-    t.setStyle(define_url_table_style())
+    t.setStyle(define_avg_time_table_style())
     return t
 
 
@@ -564,7 +641,7 @@ styles = define_paragraph_styles()
 # container for the 'Flowable' objects
 elements = []
 
-elements.append(Paragraph("Load Balancer Statistics", styles["table_title"]))
+elements.append(Paragraph("Load balancer statistics", styles["table_title"]))
 elements.append(Spacer(1, 2*cm))
 
 target_table = generate_target_table(styles, target_addresses, chart_data)
@@ -604,6 +681,14 @@ elements.append(Spacer(1, 0.5*cm))
 url_time_stats = get_top_10_by_time_stats(statsdb, args.date)
 url_time_table = generate_url_time_table(styles, url_time_stats)
 elements.append(url_time_table)
+
+elements.append(PageBreak())
+elements.append(Paragraph("HTTP status codes", styles["table_title"]))
+elements.append(Spacer(1, 0.5*cm))
+
+status_code_stats = get_status_code_stats(statsdb, args.date)
+status_code_table = generate_status_code_table(styles, status_code_stats)
+elements.append(status_code_table)
 
 elements.append(PageBreak())
 elements.append(Paragraph("Top 100 requests by average processing time", styles["table_title"]))
