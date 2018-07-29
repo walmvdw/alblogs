@@ -253,6 +253,7 @@ def define_url_table_style():
 
     table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
     table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -2), 0.4 * mm, colors.black)
 
     # Header row
     table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
@@ -309,8 +310,8 @@ def generate_target_table(styles, target_addresses, chart_data):
             totals[target_address] += chart_data["targets_val"][target_address][hour]
             total_count += chart_data["targets_val"][target_address][hour]
             table_row.append(
-                Paragraph("{:d}".format(chart_data["targets_val"][target_address][hour]), styles["table_data_right"]))
-            table_row.append(Paragraph("{:0.2f}".format(chart_data["targets_pct"][target_address][hour]),
+                Paragraph("{:,d}".format(chart_data["targets_val"][target_address][hour]), styles["table_data_right"]))
+            table_row.append(Paragraph("{:0,.2f}".format(chart_data["targets_pct"][target_address][hour]),
                                        styles["table_data_right"]))
         table_data.append(table_row)
 
@@ -318,9 +319,9 @@ def generate_target_table(styles, target_addresses, chart_data):
     last_row.append(Paragraph("TOT", styles["table_data_right_bold"]))
 
     for target_address in target_addresses:
-        last_row.append(Paragraph("{:d}".format(totals[target_address]),  styles["table_data_right_bold"]))
+        last_row.append(Paragraph("{:,d}".format(totals[target_address]),  styles["table_data_right_bold"]))
         pct = (float(totals[target_address]) / float(total_count)) * 100.0
-        last_row.append(Paragraph("{:0.2f}".format(pct),  styles["table_data_right_bold"]))
+        last_row.append(Paragraph("{:0,.2f}".format(pct),  styles["table_data_right_bold"]))
 
     table_data.append(last_row)
 
@@ -397,7 +398,13 @@ def generate_url_count_table(styles, url_stats):
 
     table_data.append(header_row)
 
+    totals = {"request_count": 0, "top_10_pct": 0, "total_pct": 0, "processing_time": 0}
     for stats in url_stats:
+        totals["request_count"] += stats["request_count"]
+        totals["top_10_pct"] += stats["top_10_pct"]
+        totals["total_pct"] += stats["total_pct"]
+        totals["processing_time"] += stats["processing_time"]
+
         data_row = []
         data_row.append(Paragraph(stats["url"], styles["table_data_left"]))
         data_row.append(Paragraph("{0:,}".format(stats["request_count"]), styles["table_data_right"]))
@@ -407,6 +414,16 @@ def generate_url_count_table(styles, url_stats):
         data_row.append(Paragraph("{:0,.5f}".format(stats["avg_processing_time"]), styles["table_data_right"]))
 
         table_data.append(data_row)
+
+    last_row = []
+    last_row.append(Paragraph("TOTAL", styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{0:,}".format(totals["request_count"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.2f}".format(totals["top_10_pct"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.2f}".format(totals["total_pct"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.0f}".format(totals["processing_time"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("", styles["table_data_right_bold"]))
+
+    table_data.append(last_row)
 
     t = Table(table_data)
     t.setStyle(define_url_table_style())
@@ -426,7 +443,13 @@ def generate_url_time_table(styles, url_stats):
 
     table_data.append(header_row)
 
+    totals = {"request_count": 0, "top_10_pct": 0, "total_pct": 0, "processing_time": 0}
     for stats in url_stats:
+        totals["request_count"] += stats["request_count"]
+        totals["top_10_pct"] += stats["top_10_pct"]
+        totals["total_pct"] += stats["total_pct"]
+        totals["processing_time"] += stats["processing_time"]
+
         data_row = []
         data_row.append(Paragraph(stats["url"], styles["table_data_left"]))
         data_row.append(Paragraph("{:0,.0f}".format(stats["processing_time"]), styles["table_data_right"]))
@@ -436,6 +459,16 @@ def generate_url_time_table(styles, url_stats):
         data_row.append(Paragraph("{:0,.5f}".format(stats["avg_processing_time"]), styles["table_data_right"]))
 
         table_data.append(data_row)
+
+    last_row = []
+    last_row.append(Paragraph("TOTAL", styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{0:,}".format(totals["request_count"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.2f}".format(totals["top_10_pct"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.2f}".format(totals["total_pct"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.0f}".format(totals["processing_time"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("", styles["table_data_right_bold"]))
+
+    table_data.append(last_row)
 
     t = Table(table_data)
     t.setStyle(define_url_table_style())
@@ -481,15 +514,15 @@ def generate_totals_table(styles, totals):
 
     table_row = []
     table_row.append(Paragraph("Request count", styles["table_data_left"]))
-    table_row.append(Paragraph("{:d}".format(day_totals["count"]), style=styles["table_data_right"]))
+    table_row.append(Paragraph("{:,d}".format(day_totals["count"]), style=styles["table_data_right"]))
     table_rows.append(table_row)
 
     table_row = []
-    table_row.append(Paragraph("Procesing time", styles["table_data_left"]))
-    table_row.append(Paragraph("{:0.0f}".format(day_totals["time"]), style=styles["table_data_right"]))
+    table_row.append(Paragraph("Procesing time (sec)", styles["table_data_left"]))
+    table_row.append(Paragraph("{:0,.0f}".format(day_totals["time"]), style=styles["table_data_right"]))
     table_rows.append(table_row)
 
-    t = Table(table_rows, colWidths=[2.5 * cm, 2 * cm])
+    t = Table(table_rows, colWidths=[3 * cm, 2 * cm])
     t.setStyle(define_totals_table_style())
 
     return t
