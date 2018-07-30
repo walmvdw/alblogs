@@ -63,7 +63,7 @@ config = alblogs.get_configuration()
 arch_dir = config.get_archive_dir()
 if os.path.exists(arch_dir):
     if not os.path.isdir(arch_dir):
-        raise RuntimeError("Path '{}' is not a directory")
+        raise RuntimeError("Path '{}' is not a directory".format(arch_dir))
 else:
     os.makedirs(arch_dir)
 

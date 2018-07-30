@@ -23,11 +23,23 @@ class ConfigurationSection(object):
         return self._parent.get_value("{0}.{1}".format(self._section, key))
 
 
+class AwsSection(ConfigurationSection):
+    def __init__(self, parent):
+        super(AwsSection, self).__init__(parent, "aws")
+
+    def get_bucket_name(self):
+        return self.get_value("bucket_name")
+
+    def get_base_dir(self):
+        return self.get_value("base_dir")
+
+
 class Configuration(object):
     def __init__(self, path):
         self._path = path
         self._data = None
         self._init()
+        self.aws = AwsSection(self)
 
     def _init(self):
         get_log().info("Initializing configuration for path '{0}'".format(self._path))

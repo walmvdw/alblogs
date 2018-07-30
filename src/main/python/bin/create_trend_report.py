@@ -429,13 +429,19 @@ def generate_url_table(styles, url_stats, dates):
     table_data.append(header_row)
 
     for datestr in dates:
-        date_stat = url_stats["dates"][datestr]
+        date_stat = url_stats["dates"].get(datestr)
         data_row = []
         data_row.append(Paragraph("{}".format(datestr), style=styles["table_data_left"]))
-        data_row.append(Paragraph("{:,d}".format(date_stat["sum_request_count"]), style=styles["table_data_right"]))
-        data_row.append(Paragraph("{:0,.1f}".format(date_stat["sum_processing_time"]), style=styles["table_data_right"]))
-        data_row.append(Paragraph("{:0,.3f}".format(date_stat["avg_processing_time"]), style=styles["table_data_right"]))
-        data_row.append(Paragraph("{:,d}".format(date_stat["pos"]), style=styles["table_data_right"]))
+        if date_stat is None:
+            data_row.append(Paragraph("-", style=styles["table_data_right"]))
+            data_row.append(Paragraph("-", style=styles["table_data_right"]))
+            data_row.append(Paragraph("-", style=styles["table_data_right"]))
+            data_row.append(Paragraph("-", style=styles["table_data_right"]))
+        else:
+            data_row.append(Paragraph("{:,d}".format(date_stat["sum_request_count"]), style=styles["table_data_right"]))
+            data_row.append(Paragraph("{:0,.1f}".format(date_stat["sum_processing_time"]), style=styles["table_data_right"]))
+            data_row.append(Paragraph("{:0,.3f}".format(date_stat["avg_processing_time"]), style=styles["table_data_right"]))
+            data_row.append(Paragraph("{:,d}".format(date_stat["pos"]), style=styles["table_data_right"]))
 
         table_data.append(data_row)
 
@@ -455,8 +461,11 @@ def generate_date_chart(url_stats, dates):
 
     values = []
     for datestr in dates:
-        date_stat = url_stats["dates"][datestr]
-        values.append(date_stat["avg_processing_time"])
+        date_stat = url_stats["dates"].get(datestr)
+        if date_stat is None:
+            values.append(None)
+        else:
+            values.append(date_stat["avg_processing_time"])
 
     ax.plot(dates, values, label=url_stats["url"])
 

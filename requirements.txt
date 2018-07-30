@@ -2,3 +2,5 @@ reportlab
 matplotlib
 pyYAML
 numpy
+boto3
+
