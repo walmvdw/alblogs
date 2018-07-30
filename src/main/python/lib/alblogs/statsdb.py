@@ -464,11 +464,12 @@ class Database(object):
         sql += "FROM   `stats_target_address` `tas` "
         sql += ",      `log_date` `dte` "
         sql += "WHERE  `dte`.`id` = `tas`.`log_date_id` "
+        sql += "AND    `dte`.`date` = ? "
 
         get_log().debug("query_day_totals: query = {}".format(sql))
 
         get_log().info("BEGIN: Executing query_day_totals")
-        result = self._get_cursor().execute(sql)
+        result = self._get_cursor().execute(sql, (datestr, ))
         get_log().info("END: Executing query_day_totals")
 
         return result
