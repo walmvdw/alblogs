@@ -522,8 +522,8 @@ class Database(object):
 
         return result
 
-    def query_top_10_url_by_time(self, datestr):
-        sql = """select   `url`.`url` `url`
+    def query_top_x_url_by_time(self, datestr, limit=10):
+        sql = """select  `url`.`url` `url`
                  ,        sum(`sts`.`request_count`) `sum_request_count`
                  ,        sum(`sts`.`sum_target_processing_time_sec`) `sum_target_processing_time`
                  from     `stats_url` `sts`
@@ -534,13 +534,13 @@ class Database(object):
                  and      `dte`.`date` = ?
                  group by `url`
                  order by `sum_target_processing_time` desc
-                 limit    10
+                 limit    ?
               """
 
         get_log().debug("query_top_10_url_by_time: query = {}".format(sql))
 
         get_log().info("BEGIN: Executing query_top_10_url_by_time")
-        result = self._get_cursor().execute(sql, (datestr, ))
+        result = self._get_cursor().execute(sql, (datestr, limit))
         get_log().info("END: Executing query_top_10_url_by_time")
 
         return result
@@ -590,5 +590,61 @@ class Database(object):
         get_log().info("BEGIN: Executing query_status_code")
         result = self._get_cursor().execute(sql, (datestr, ))
         get_log().info("END: Executing query_status_code")
+
+        return result
+
+    def query_max_date(self):
+        # Joins stats_status_code on log_date and finds max date for which there is data
+        # stats_status_code is chosen because it is the smallest table
+        sql = """select max(`dte`.`date`) as `max_date`
+                 from   `stats_status_code` `sts`
+                 ,      `log_date` `dte`
+                 where   `dte`.`id` = `sts`.`log_date_id` 
+              """
+
+        get_log().debug("query_max_date: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_max_date")
+        result = self._get_cursor().execute(sql)
+        get_log().info("END: Executing query_max_date")
+        row = result.fetchone()
+        return row["max_date"]
+
+    def query_min_date(self):
+        # Joins stats_status_code on log_date and finds max date for which there is data
+        # stats_status_code is chosen because it is the smallest table
+        sql = """select min(`dte`.`date`) as `min_date`
+                 from   `stats_status_code` `sts`
+                 ,      `log_date` `dte`
+                 where   `dte`.`id` = `sts`.`log_date_id` 
+              """
+
+        get_log().debug("query_max_date: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_max_date")
+        result = self._get_cursor().execute(sql)
+        get_log().info("END: Executing query_max_date")
+        row = result.fetchone()
+        return row["min_date"]
+
+    def query_url_stats_for_url_and_date(self, url, datestr):
+        sql = """select  `url`.`url` `url`
+                 ,        sum(`sts`.`request_count`) `sum_request_count`
+                 ,        sum(`sts`.`sum_target_processing_time_sec`) `sum_target_processing_time`
+                 from     `stats_url` `sts`
+                 ,        `log_date` `dte`
+                 ,        `log_url` `url`
+                 where    `dte`.`id` = `sts`.`log_date_id`
+                 and      `url`.`id` = `sts`.`log_url_id`
+                 and      `dte`.`date` = ?
+                 and      `url`.`url` = ?
+                 group by `url`
+              """
+
+        get_log().debug("query_url_stats_for_url_and_date: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_url_stats_for_url_and_date")
+        result = self._get_cursor().execute(sql, (datestr, url))
+        get_log().info("END: Executing query_url_stats_for_url_and_date")
 
         return result

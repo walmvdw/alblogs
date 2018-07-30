@@ -372,7 +372,7 @@ def get_top_10_by_count_stats(statsdb, datestr):
 
 
 def get_top_10_by_time_stats(statsdb, datestr):
-    url_stats_curs = statsdb.query_top_10_url_by_time(datestr)
+    url_stats_curs = statsdb.query_top_x_url_by_time(datestr)
     url_stats = []
 
     total_request_time = 0
@@ -617,7 +617,7 @@ LOGGER.info("Starting update_stats.py")
 config = alblogs.get_configuration()
 
 logsdb_file = "{}/{}-alblogs.db".format(config.get_data_dir(), args.date)
-statsdb_file = "{}/stats.db".format(config.get_data_dir(), args.date)
+statsdb_file = "{}/stats.db".format(config.get_data_dir())
 
 statsdb = alblogs.open_statsdb(statsdb_file, create=True)
 
@@ -706,4 +706,3 @@ chart_handle.close()
 # delete temporary chart file
 os.remove(target_chart_filename)
 
-print(A4)
