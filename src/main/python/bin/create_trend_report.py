@@ -464,7 +464,7 @@ def generate_url_table(styles, url_stats, dates):
 
 def generate_date_chart(url_stats, dates):
 
-    fig = plt.figure(figsize=(8,5))
+    fig = plt.figure(figsize=(7,4))
 
     fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
 
@@ -496,12 +496,48 @@ def generate_date_chart(url_stats, dates):
     return filename
 
 
+def generate_date_count_chart(url_stats, dates):
+
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    values = []
+    for datestr in dates:
+        date_stat = url_stats["dates"].get(datestr)
+        if date_stat is None:
+            values.append(None)
+        else:
+            values.append(date_stat["sum_request_count"])
+
+    ax.plot(dates, values, label=url_stats["url"])
+
+    plt.xticks(dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Count')
+    plt.title('Requests per day')
+
+    ax.grid(True)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
+
 def define_page_table_style():
     table_style = TableStyle()
     table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
     table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
     table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
     table_style.add('ALIGN', (0, 0), (-1, -1), "CENTER")
+
+    table_style.add('SPAN', (0, 0), (0, 1))
 
     return table_style
 
@@ -583,12 +619,14 @@ for url in urls:
     url_table = generate_url_table(styles, url_stats, dates)
 
     chart_filename = generate_date_chart(url_stats, dates)
-
     chart_handle = open(chart_filename, 'rb')
+    img = Image(chart_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
 
-    img = Image(chart_handle, width=(8 * cm) * 2, height=(5 * cm) * 2)
+    chart_count_filename = generate_date_count_chart(url_stats, dates)
+    chart_count_handle = open(chart_count_filename, 'rb')
+    img_count = Image(chart_count_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
 
-    page_table = Table([[url_table, img]])
+    page_table = Table([[url_table, img], ["", img_count]])
     page_table.setStyle(define_page_table_style())
 
     elements.append(page_table)
