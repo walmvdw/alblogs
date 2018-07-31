@@ -34,12 +34,27 @@ class AwsSection(ConfigurationSection):
         return self.get_value("base_dir")
 
 
+class TrendReportSection(ConfigurationSection):
+    def __init__(self, parent):
+        super(TrendReportSection, self).__init__(parent, "trend")
+
+    def get_exclude_dates(self):
+        return self.get_value("exclude_dates")
+
+
+class ReportsSection(ConfigurationSection):
+    def __init__(self, parent):
+        super(ReportsSection, self).__init__(parent, "reports")
+        self.trend = TrendReportSection(self)
+
+
 class Configuration(object):
     def __init__(self, path):
         self._path = path
         self._data = None
         self._init()
         self.aws = AwsSection(self)
+        self.reports = ReportsSection(self)
 
     def _init(self):
         get_log().info("Initializing configuration for path '{0}'".format(self._path))
@@ -72,7 +87,9 @@ class Configuration(object):
             if value is None:
                 get_log().warn("Key {0} not found in configuration data (subkey {1})".format(key, enum_key))
                 return None
-        value = self._expand_value(value)
+
+        if isinstance(value, str):
+            value = self._expand_value(value)
 
         return value
 

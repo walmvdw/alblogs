@@ -122,35 +122,37 @@ def fill_top_10_trend_gaps(statsdb, result, dates):
                     url_stats["max_avg_processing_time"] = max(url_stats["max_avg_processing_time"], avg_processing_time)
 
 
-def query_top_10_trend_data(statsdb, from_date, to_date):
+def query_top_10_trend_data(statsdb, from_date, to_date, exclude_dates):
     result = {}
     dates = []
     day_delta = datetime.timedelta(days=1)
     enum_date = from_date
+
     while enum_date <= to_date:
         datestr = enum_date
-        dates.append(datestr)
-        rows = statsdb.query_top_x_url_by_time(datestr)
-        pos = 1
-        for row in rows:
-            avg_processing_time = row["sum_target_processing_time"] / row["sum_request_count"]
-            url_stats = result.get(row['url'])
-            if url_stats is None:
-                url_stats = {"url": row['url'], "dates": {}, "min_avg_processing_time": avg_processing_time, "max_avg_processing_time": avg_processing_time}
-                result[row['url']] = url_stats
+        if datestr not in exclude_dates:
+            dates.append(datestr)
+            rows = statsdb.query_top_x_url_by_time(datestr)
+            pos = 1
+            for row in rows:
+                avg_processing_time = row["sum_target_processing_time"] / row["sum_request_count"]
+                url_stats = result.get(row['url'])
+                if url_stats is None:
+                    url_stats = {"url": row['url'], "dates": {}, "min_avg_processing_time": avg_processing_time, "max_avg_processing_time": avg_processing_time}
+                    result[row['url']] = url_stats
 
-            # There are no date_stats for this date, as this is the initial load
-            date_stats = {"date": datestr,
-                          "pos": pos,
-                          "sum_request_count": row['sum_request_count'],
-                          "sum_processing_time": row['sum_target_processing_time'],
-                          "avg_processing_time": avg_processing_time
-                         }
-            url_stats["min_avg_processing_time"] = min(url_stats["min_avg_processing_time"], avg_processing_time)
-            url_stats["max_avg_processing_time"] = max(url_stats["max_avg_processing_time"], avg_processing_time)
+                # There are no date_stats for this date, as this is the initial load
+                date_stats = {"date": datestr,
+                              "pos": pos,
+                              "sum_request_count": row['sum_request_count'],
+                              "sum_processing_time": row['sum_target_processing_time'],
+                              "avg_processing_time": avg_processing_time
+                             }
+                url_stats["min_avg_processing_time"] = min(url_stats["min_avg_processing_time"], avg_processing_time)
+                url_stats["max_avg_processing_time"] = max(url_stats["max_avg_processing_time"], avg_processing_time)
 
-            url_stats["dates"][datestr] = date_stats
-            pos += 1
+                url_stats["dates"][datestr] = date_stats
+                pos += 1
 
         enum_date = (datetime.datetime.strptime(enum_date, '%Y-%m-%d') + day_delta).strftime('%Y-%m-%d')
 
@@ -549,7 +551,12 @@ elements.append(Spacer(1, 0.2*cm))
 elements.append(Paragraph("Based on top 10 requests by total processing time per day", styles["table_subtitle"]))
 elements.append(Spacer(1, 1*cm))
 
-trend_data, dates = query_top_10_trend_data(statsdb, from_date, to_date)
+exclude_dates_dt = config.reports.trend.get_exclude_dates()
+exclude_dates = []
+for date_dt in exclude_dates_dt:
+    exclude_dates.append(date_dt.strftime("%Y-%m-%d"))
+
+trend_data, dates = query_top_10_trend_data(statsdb, from_date, to_date, exclude_dates)
 trend_table = generate_trend_table(styles, trend_data, dates)
 
 elements.append(trend_table)
@@ -592,3 +599,4 @@ doc.multiBuild(elements, canvasmaker=FooterCanvas)
 for file_rec in tempfiles:
     file_rec["handle"].close()
     os.remove(file_rec["name"])
+
