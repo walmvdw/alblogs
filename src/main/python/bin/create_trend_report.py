@@ -190,14 +190,14 @@ def define_trend_table_style(span_groups, color_groups):
     table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
     table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
 
-    table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
-    table_style.add('BOX', (0, 2), (-1, -1), 0.4 * mm, colors.black)
+    table_style.add('INNERGRID', (0, 3), (-1, -1), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 3), (-1, -1), 0.4 * mm, colors.black)
 
     # Header row
-    table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
-    table_style.add('BOX', (0, 0), (-1, 1), 0.4 * mm, colors.black)
+    # table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 0), (-1, 2), 0.4 * mm, colors.black)
 
-    table_style.add('BACKGROUND', (0, 0), (-1, 1), colors.black)
+    table_style.add('BACKGROUND', (0, 0), (-1, 2), colors.black)
     table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
 
     for span_group in span_groups:
@@ -258,8 +258,10 @@ def generate_trend_table(styles, trend_data, dates):
 
     header_row1 = []
     header_row2 = []
+    header_row3 = []
     header_row1.append(Paragraph("", style=styles["table_header_center"]))
-    header_row2.append(Paragraph("URL Path", style=styles["table_header_center"]))
+    header_row2.append(Paragraph("", style=styles["table_header_center"]))
+    header_row3.append(Paragraph("URL Path", style=styles["table_header_center"]))
 
     prev_month_part = ""
 
@@ -280,6 +282,8 @@ def generate_trend_table(styles, trend_data, dates):
             header_row1.append(Paragraph("", style=styles["table_header_center"]))
 
         header_row2.append(Paragraph(datestr[8:11], style=styles["table_header_center"]))
+        daycode = datetime.datetime.strptime(datestr, "%Y-%m-%d").strftime("%a")
+        header_row3.append(Paragraph(daycode, style=styles["table_header_center"]))
 
         colnum += 1
 
@@ -287,22 +291,26 @@ def generate_trend_table(styles, trend_data, dates):
 
     header_row1.append("")
     header_row2.append("")
+    header_row3.append("")
     widths.append(0.2 * cm)
     colnum += 1
 
     color_groups.append({"row": 0, "col": colnum - 1, "color": colors.white})
     color_groups.append({"row": 1, "col": colnum - 1, "color": colors.white})
+    color_groups.append({"row": 2, "col": colnum - 1, "color": colors.white})
 
     cur_span_group = {"first": colnum}
     span_groups.append(cur_span_group)
 
-    header_row1.append(Paragraph("Improvement", style=styles["table_header_center"]))
-    header_row2.append(Paragraph("last/first", style=styles["table_header_left"]))
+    header_row1.append("")
+    header_row2.append(Paragraph("Improvement", style=styles["table_header_center"]))
+    header_row3.append(Paragraph("last/first", style=styles["table_header_left"]))
     widths.append(1.5 * cm)
     colnum += 1
 
-    header_row1.append(Paragraph("", style=styles["table_header_center"]))
-    header_row2.append(Paragraph("max/min", style=styles["table_header_center"]))
+    header_row1.append("")
+    header_row2.append(Paragraph("", style=styles["table_header_center"]))
+    header_row3.append(Paragraph("max/min", style=styles["table_header_center"]))
     widths.append(1.5 * cm)
     colnum += 1
 
@@ -310,6 +318,7 @@ def generate_trend_table(styles, trend_data, dates):
 
     table_data.append(header_row1)
     table_data.append(header_row2)
+    table_data.append(header_row3)
 
     urls = sorted(trend_data.keys())
     row_num = len(table_data) - 1
