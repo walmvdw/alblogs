@@ -203,7 +203,7 @@ def define_trend_table_style(span_groups, color_groups):
     table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
 
     for span_group in span_groups:
-        table_style.add('SPAN', (span_group["first"], 0), (span_group["last"], 0))
+        table_style.add('SPAN', (span_group["left"], span_group["top"]), (span_group["right"], span_group["bottom"]))
 
     for color_group in color_groups:
         table_style.add("BACKGROUND", (color_group["col"], color_group["row"]), (color_group["col"], color_group["row"]), color_group["color"])
@@ -275,8 +275,8 @@ def generate_trend_table(styles, trend_data, dates):
         month_part = datestr[:7]
         if month_part != prev_month_part:
             if cur_span_group is not None:
-                cur_span_group["last"] = colnum - 1
-            cur_span_group = {"first": colnum}
+                cur_span_group["right"] = colnum - 1
+            cur_span_group = {"left": colnum, "top": 0, "bottom": 0}
             span_groups.append(cur_span_group)
             prev_month_part = month_part
             header_row1.append(Paragraph(month_part, style=styles["table_header_left"]))
@@ -289,7 +289,7 @@ def generate_trend_table(styles, trend_data, dates):
 
         colnum += 1
 
-    cur_span_group["last"] = colnum - 1
+    cur_span_group["right"] = colnum - 1
 
     header_row1.append("")
     header_row2.append("")
@@ -301,7 +301,7 @@ def generate_trend_table(styles, trend_data, dates):
     color_groups.append({"row": 1, "col": colnum - 1, "color": colors.white})
     color_groups.append({"row": 2, "col": colnum - 1, "color": colors.white})
 
-    cur_span_group = {"first": colnum}
+    cur_span_group = {"left": colnum, "top": 1, "bottom": 1}
     span_groups.append(cur_span_group)
 
     header_row1.append("")
@@ -316,7 +316,7 @@ def generate_trend_table(styles, trend_data, dates):
     widths.append(1.5 * cm)
     colnum += 1
 
-    cur_span_group["last"] = colnum - 1
+    cur_span_group["right"] = colnum - 1
 
     table_data.append(header_row1)
     table_data.append(header_row2)
