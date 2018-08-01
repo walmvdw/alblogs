@@ -9,6 +9,7 @@ def read_arguments():
     argparser.add_argument("--date", "-d", metavar="DATE", type=str, default=None, help="Date for which to process ALB logs (yyyy-mm-dd)")
     argparser.add_argument("--skipdownload", "-s", action="store_true", help="When this option is provided the downloading of logs is skipped")
     argparser.add_argument("--trendfromdate", "-t", action="store", default=None, help="Start date for trend report")
+    argparser.add_argument("--force", "-f", action="store_true", help="Force execution even if calculated run day is today")
 
     args = argparser.parse_args()
 
@@ -126,6 +127,9 @@ else:
     run_date = args.date
     LOGGER.info("Date provided in commandline options: {}".format(run_date))
 
+today = datetime.datetime.now().strftime("%Y-%m-%d")
+if today == run_date and not args.force:
+    raise RuntimeError("Run date is today and --force flag not specified")
 
 if args.skipdownload:
     LOGGER.info("Skipping call to download.py because skipdownload is enabled")

@@ -136,7 +136,7 @@ def process_target_stats(target_stats, hour_stats):
 
 def generate_target_chart(target_addresses, chart_data):
 
-    fig = plt.figure(figsize=(8,5))
+    fig = plt.figure(figsize=(7,4))
 
     fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
 
@@ -169,6 +169,39 @@ def generate_target_chart(target_addresses, chart_data):
     return filename
 
 
+def generate_hour_chart(hour_stats):
+
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    data = []
+    hours = sorted(hour_stats.keys())
+    for hr in hours:
+        data.append(hour_stats[hr])
+
+    ax.plot(hours, data)
+
+    plt.xticks(hours)
+    plt.xlabel('Time')
+
+    plt.ylabel('Count')
+    plt.title('Request count per hour')
+
+    ax.grid(True)
+    ax.set_xlim(xmin=0, xmax=23)
+    ax.set_ylim(ymin=0)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
+
 def generate_table_rows(target_addresses, chart_data):
     rows = []
 
@@ -190,6 +223,8 @@ def define_page_table_style():
     table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
     table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
     table_style.add('ALIGN', (0, 0), (-1, -1), "CENTER")
+
+    table_style.add('SPAN', (0, 0), (0, 1))
 
     return table_style
 
@@ -318,6 +353,9 @@ def generate_target_table(styles, target_addresses, chart_data):
         header_row2.append(Paragraph("%", styles["table_header_center"]))
         totals[target_address] = 0
 
+    header_row1.append("")
+    header_row2.append(Paragraph("Total", styles["table_header_center"]))
+
     table_data.append(header_row1)
     table_data.append(header_row2)
 
@@ -326,6 +364,7 @@ def generate_target_table(styles, target_addresses, chart_data):
         table_row = []
         table_row.append(Paragraph("{}".format(hour), styles["table_data_right"]))
 
+        hour_total = 0
         for target_address in target_addresses:
             totals[target_address] += chart_data["targets_val"][target_address][hour]
             total_count += chart_data["targets_val"][target_address][hour]
@@ -333,6 +372,10 @@ def generate_target_table(styles, target_addresses, chart_data):
                 Paragraph("{:,d}".format(chart_data["targets_val"][target_address][hour]), styles["table_data_right"]))
             table_row.append(Paragraph("{:0,.2f}".format(chart_data["targets_pct"][target_address][hour]),
                                        styles["table_data_right"]))
+            hour_total += chart_data["targets_val"][target_address][hour]
+
+        table_row.append(Paragraph("{:,d}".format(hour_total), styles["table_data_right"]))
+
         table_data.append(table_row)
 
     last_row = []
@@ -342,6 +385,8 @@ def generate_target_table(styles, target_addresses, chart_data):
         last_row.append(Paragraph("{:,d}".format(totals[target_address]),  styles["table_data_right_bold"]))
         pct = (float(totals[target_address]) / float(total_count)) * 100.0
         last_row.append(Paragraph("{:0,.2f}".format(pct),  styles["table_data_right_bold"]))
+
+    last_row.append(Paragraph("{:,d}".format(total_count),  styles["table_data_right_bold"]))
 
     table_data.append(last_row)
 
@@ -627,6 +672,7 @@ hour_stats, target_stats = get_target_address_stats(statsdb, args.date)
 target_addresses, chart_data = process_target_stats(target_stats, hour_stats)
 
 target_chart_filename = generate_target_chart(target_addresses, chart_data)
+hour_chart_filename = generate_hour_chart(hour_stats)
 
 doc = SimpleDocTemplate("{}/{}-report.pdf".format(config.get_reports_dir(), args.date)
                         , pagesize=landscape(A4)
@@ -642,15 +688,17 @@ styles = define_paragraph_styles()
 elements = []
 
 elements.append(Paragraph("Load balancer statistics", styles["table_title"]))
-elements.append(Spacer(1, 2*cm))
+elements.append(Spacer(1, 1*cm))
 
 target_table = generate_target_table(styles, target_addresses, chart_data)
 
 chart_handle = open(target_chart_filename, 'rb')
+img = Image(chart_handle, width=(7*cm)*2, height=(4*cm)*2)
 
-img = Image(chart_handle, width=(8*cm)*2, height=(5*cm)*2)
+hour_chart_handle = open(hour_chart_filename, 'rb')
+img_hour = Image(hour_chart_handle, width=(7*cm)*2, height=(4*cm)*2)
 
-page_table = Table([[target_table, img]])
+page_table = Table([[target_table, img], ["", img_hour]])
 page_table.setStyle(define_page_table_style())
 
 elements.append(page_table)
@@ -702,7 +750,9 @@ elements.append(url_top100_table)
 doc.multiBuild(elements, canvasmaker=FooterCanvas)
 
 chart_handle.close()
+hour_chart_handle.close()
 
 # delete temporary chart file
 os.remove(target_chart_filename)
+os.remove(hour_chart_filename)
 

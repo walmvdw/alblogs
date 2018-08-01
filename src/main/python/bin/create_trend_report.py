@@ -161,6 +161,25 @@ def query_top_10_trend_data(statsdb, from_date, to_date, exclude_dates):
     return result, dates
 
 
+def query_request_volume_data(statsdb, from_date, to_date, exclude_dates):
+    dates = []
+    result = {}
+    day_delta = datetime.timedelta(days=1)
+    enum_date = from_date
+
+    while enum_date <= to_date:
+        datestr = enum_date
+        if datestr not in exclude_dates:
+            dates.append(datestr)
+            rows = statsdb.query_day_totals(datestr)
+            row = rows.fetchone()
+            result[datestr] = {"count": row["request_count"], "time": row["target_processing_time_sec"]}
+
+        enum_date = (datetime.datetime.strptime(enum_date, '%Y-%m-%d') + day_delta).strftime('%Y-%m-%d')
+
+    return dates, result
+
+
 def define_paragraph_styles():
     styles = {}
 
@@ -542,6 +561,109 @@ def define_page_table_style():
     return table_style
 
 
+def define_request_volume_table_style():
+    table_style = TableStyle()
+
+    # All rows
+    table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
+
+    table_style.add('INNERGRID', (0, 1), (-1, -1), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 1), (-1, -1), 0.4 * mm, colors.black)
+
+    # Header row
+    table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 0), (-1, 0), 0.4 * mm, colors.black)
+
+    table_style.add('BACKGROUND', (0, 0), (-1, 0), colors.black)
+    table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
+
+    return table_style
+
+
+def generate_request_volume_table(styles, data, dates):
+    table_data = []
+
+    header_row = []
+    header_row.append(Paragraph("Date", styles["table_header_center"]))
+    header_row.append(Paragraph("Count", styles["table_header_center"]))
+    header_row.append(Paragraph("Time", styles["table_header_center"]))
+    table_data.append(header_row)
+
+    for datestr in dates:
+        data_row = []
+
+        data_row.append(Paragraph("{}".format(datestr), styles["table_data_left"]))
+        data_row.append(Paragraph("{:,d}".format(data[datestr]["count"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:,.0f}".format(data[datestr]["time"]), styles["table_data_right"]))
+        table_data.append(data_row)
+
+    t = Table(table_data, colWidths=[3*cm, 3*cm, 3*cm])
+    t.setStyle(define_request_volume_table_style())
+
+    return t
+
+
+def generate_request_volume_count_chart(data, dates):
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    axis_data = []
+    for datestr in dates:
+        axis_data.append(data[datestr]["count"])
+
+    ax.plot(dates, axis_data)
+
+    plt.xticks(dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Count')
+    plt.title('Request count')
+
+    ax.grid(True)
+    ax.set_ylim(ymin=0)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
+
+def generate_request_volume_time_chart(data, dates):
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    axis_data = []
+    for datestr in dates:
+        axis_data.append(data[datestr]["time"])
+
+    ax.plot(dates, axis_data)
+
+    plt.xticks(dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Seconds')
+    plt.title('Request time')
+
+    ax.grid(True)
+    ax.set_ylim(ymin=0)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
 # ------------------------------ MAIN PROGRAM ------------------------------
 
 args = read_arguments()
@@ -602,7 +724,30 @@ elements.append(Spacer(1, 1*cm))
 legend_table = generate_trend_legend_table(styles)
 elements.append(legend_table)
 
+elements.append(PageBreak())
+
 tempfiles = []
+
+request_volume_dates, request_volume_data = query_request_volume_data(statsdb, from_date, to_date, exclude_dates)
+request_volume_table = generate_request_volume_table(styles, request_volume_data, request_volume_dates)
+
+request_volume_chart_count_f = generate_request_volume_count_chart(request_volume_data, request_volume_dates)
+request_volume_chart_time_f = generate_request_volume_time_chart(request_volume_data, request_volume_dates)
+
+request_volume_chart_count_h = open(request_volume_chart_count_f, "rb")
+img_count = Image(request_volume_chart_count_h, width=(7*cm)*2, height=(4*cm)*2)
+tempfiles.append({"name": request_volume_chart_count_f, "handle": request_volume_chart_count_h})
+
+request_volume_chart_time_h = open(request_volume_chart_time_f, "rb")
+img_time = Image(request_volume_chart_time_h, width=(7*cm)*2, height=(4*cm)*2)
+tempfiles.append({"name": request_volume_chart_time_f, "handle": request_volume_chart_time_h})
+
+page_table = Table([[request_volume_table, img_count], ["", img_time]])
+page_table.setStyle(define_page_table_style())
+
+elements.append(Paragraph("Request volume", styles["table_title"]))
+elements.append(Spacer(1, 1 * cm))
+elements.append(page_table)
 
 urls = sorted(trend_data.keys())
 for url in urls:
