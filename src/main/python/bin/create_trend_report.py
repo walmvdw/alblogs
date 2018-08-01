@@ -561,6 +561,16 @@ def define_page_table_style():
     return table_style
 
 
+def define_page_table_style_no_span():
+    table_style = TableStyle()
+    table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
+    table_style.add('ALIGN', (0, 0), (-1, -1), "CENTER")
+
+    return table_style
+
+
 def define_request_volume_table_style():
     table_style = TableStyle()
 
@@ -589,6 +599,7 @@ def generate_request_volume_table(styles, data, dates):
     header_row.append(Paragraph("Date", styles["table_header_center"]))
     header_row.append(Paragraph("Count", styles["table_header_center"]))
     header_row.append(Paragraph("Time", styles["table_header_center"]))
+    header_row.append(Paragraph("Average", styles["table_header_center"]))
     table_data.append(header_row)
 
     for datestr in dates:
@@ -597,9 +608,10 @@ def generate_request_volume_table(styles, data, dates):
         data_row.append(Paragraph("{}".format(datestr), styles["table_data_left"]))
         data_row.append(Paragraph("{:,d}".format(data[datestr]["count"]), styles["table_data_right"]))
         data_row.append(Paragraph("{:,.0f}".format(data[datestr]["time"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:,.3f}".format(data[datestr]["time"]/data[datestr]["count"]), styles["table_data_right"]))
         table_data.append(data_row)
 
-    t = Table(table_data, colWidths=[3*cm, 3*cm, 3*cm])
+    t = Table(table_data, colWidths=[2*cm, 2*cm, 2*cm, 2*cm])
     t.setStyle(define_request_volume_table_style())
 
     return t
@@ -622,7 +634,7 @@ def generate_request_volume_count_chart(data, dates):
     plt.xlabel('Date')
 
     plt.ylabel('Count')
-    plt.title('Request count')
+    plt.title('Requests per day')
 
     ax.grid(True)
     ax.set_ylim(ymin=0)
@@ -652,7 +664,7 @@ def generate_request_volume_time_chart(data, dates):
     plt.xlabel('Date')
 
     plt.ylabel('Seconds')
-    plt.title('Request time')
+    plt.title('Total request time per day')
 
     ax.grid(True)
     ax.set_ylim(ymin=0)
@@ -663,6 +675,37 @@ def generate_request_volume_time_chart(data, dates):
     figfile.close()
 
     return filename
+
+
+def generate_request_volume_avg_chart(data, dates):
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    axis_data = []
+    for datestr in dates:
+        axis_data.append(data[datestr]["time"] / data[datestr]["count"])
+
+    ax.plot(dates, axis_data)
+
+    plt.xticks(dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Seconds')
+    plt.title('Average processing time')
+
+    ax.grid(True)
+    ax.set_ylim(ymin=0)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
 
 # ------------------------------ MAIN PROGRAM ------------------------------
 
@@ -732,18 +775,22 @@ request_volume_dates, request_volume_data = query_request_volume_data(statsdb, f
 request_volume_table = generate_request_volume_table(styles, request_volume_data, request_volume_dates)
 
 request_volume_chart_count_f = generate_request_volume_count_chart(request_volume_data, request_volume_dates)
-request_volume_chart_time_f = generate_request_volume_time_chart(request_volume_data, request_volume_dates)
-
 request_volume_chart_count_h = open(request_volume_chart_count_f, "rb")
 img_count = Image(request_volume_chart_count_h, width=(7*cm)*2, height=(4*cm)*2)
 tempfiles.append({"name": request_volume_chart_count_f, "handle": request_volume_chart_count_h})
 
+request_volume_chart_time_f = generate_request_volume_time_chart(request_volume_data, request_volume_dates)
 request_volume_chart_time_h = open(request_volume_chart_time_f, "rb")
 img_time = Image(request_volume_chart_time_h, width=(7*cm)*2, height=(4*cm)*2)
 tempfiles.append({"name": request_volume_chart_time_f, "handle": request_volume_chart_time_h})
 
-page_table = Table([[request_volume_table, img_count], ["", img_time]])
-page_table.setStyle(define_page_table_style())
+request_volume_chart_avg_f = generate_request_volume_avg_chart(request_volume_data, request_volume_dates)
+request_volume_chart_avg_h = open(request_volume_chart_avg_f, "rb")
+img_avg = Image(request_volume_chart_avg_h, width=(7*cm)*2, height=(4*cm)*2)
+tempfiles.append({"name": request_volume_chart_avg_f, "handle": request_volume_chart_avg_h})
+
+page_table = Table([[request_volume_table, img_count], [img_avg, img_time]])
+page_table.setStyle(define_page_table_style_no_span())
 
 elements.append(Paragraph("Request volume", styles["table_title"]))
 elements.append(Spacer(1, 1 * cm))
