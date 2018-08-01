@@ -481,7 +481,7 @@ def generate_url_table(styles, url_stats, dates):
     return t
 
 
-def generate_date_chart(url_stats, dates):
+def generate_date_time_chart(url_stats, dates):
 
     fig = plt.figure(figsize=(7,4))
 
@@ -495,7 +495,7 @@ def generate_date_chart(url_stats, dates):
         if date_stat is None:
             values.append(None)
         else:
-            values.append(date_stat["avg_processing_time"])
+            values.append(date_stat["sum_processing_time"])
 
     ax.plot(dates, values, label=url_stats["url"])
 
@@ -503,7 +503,7 @@ def generate_date_chart(url_stats, dates):
     plt.xlabel('Date')
 
     plt.ylabel('Seconds')
-    plt.title('Average processing time')
+    plt.title('Total request time per day')
 
     ax.grid(True)
 
@@ -694,10 +694,44 @@ def generate_request_volume_avg_chart(data, dates):
     plt.xlabel('Date')
 
     plt.ylabel('Seconds')
-    plt.title('Average processing time')
+    plt.title('Average processing time per day')
 
     ax.grid(True)
     ax.set_ylim(ymin=0)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
+
+def generate_date_avg_chart(url_stats, dates):
+
+    fig = plt.figure(figsize=(7,4))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    values = []
+    for datestr in dates:
+        date_stat = url_stats["dates"].get(datestr)
+        if date_stat is None:
+            values.append(None)
+        else:
+            values.append(date_stat["avg_processing_time"])
+
+    ax.plot(dates, values, label=url_stats["url"])
+
+    plt.xticks(dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Seconds')
+    plt.title('Average processing time per day')
+
+    ax.grid(True)
 
     figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
     plt.savefig(figfile)
@@ -792,7 +826,7 @@ tempfiles.append({"name": request_volume_chart_avg_f, "handle": request_volume_c
 page_table = Table([[request_volume_table, img_count], [img_avg, img_time]])
 page_table.setStyle(define_page_table_style_no_span())
 
-elements.append(Paragraph("Request volume", styles["table_title"]))
+elements.append(Paragraph("Total request volume", styles["table_title"]))
 elements.append(Spacer(1, 1 * cm))
 elements.append(page_table)
 
@@ -803,26 +837,32 @@ for url in urls:
 
     elements.append(PageBreak())
 
-    elements.append(Paragraph("Performance Trend for URL", styles["table_subtitle"]))
+    elements.append(Paragraph("Performance Trend for URL", styles["table_title"]))
     elements.append(Spacer(1, 0.2*cm))
-    elements.append(Paragraph("{}".format(display_url), styles["table_title"]))
+    elements.append(Paragraph("{}".format(display_url), styles["table_subtitle"]))
     elements.append(Spacer(1, 1*cm))
 
     url_table = generate_url_table(styles, url_stats, dates)
-
-    chart_filename = generate_date_chart(url_stats, dates)
-    chart_handle = open(chart_filename, 'rb')
-    img = Image(chart_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
 
     chart_count_filename = generate_date_count_chart(url_stats, dates)
     chart_count_handle = open(chart_count_filename, 'rb')
     img_count = Image(chart_count_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
 
-    page_table = Table([[url_table, img], ["", img_count]])
-    page_table.setStyle(define_page_table_style())
+    chart_avg_filename = generate_date_avg_chart(url_stats, dates)
+    chart_avg_handle = open(chart_avg_filename, 'rb')
+    img_avg = Image(chart_avg_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
+
+    chart_time_filename = generate_date_time_chart(url_stats, dates)
+    chart_time_handle = open(chart_time_filename, 'rb')
+    img_time = Image(chart_time_handle, width=(7 * cm) * 2, height=(4 * cm) * 2)
+
+    page_table = Table([[url_table, img_count], [img_avg, img_time]])
+    page_table.setStyle(define_page_table_style_no_span())
 
     elements.append(page_table)
-    tempfiles.append({"name": chart_filename, "handle": chart_handle})
+    tempfiles.append({"name": chart_count_filename, "handle": chart_count_handle})
+    tempfiles.append({"name": chart_time_filename, "handle": chart_time_handle})
+    tempfiles.append({"name": chart_avg_filename, "handle": chart_avg_handle})
 
 doc.multiBuild(elements, canvasmaker=FooterCanvas)
 
