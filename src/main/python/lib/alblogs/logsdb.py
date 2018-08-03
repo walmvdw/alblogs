@@ -360,6 +360,7 @@ class Database(object):
         sql += "SELECT   `url`.`url`  `url`  "
         sql += ",        `dte`.`date` `date` "
         sql += ",        `hr`.`hour`  `hour` "
+        sql += ",        `ety`.`elb_status_code`  `elb_status_code` "
         sql += ",        COUNT(*)     `request_count` "
         sql += ",        SUM(`request_processing_time_sec`) `sum_request_processing_time_sec` "
         sql += ",        MIN(`request_processing_time_sec`) `min_request_processing_time_sec` "
