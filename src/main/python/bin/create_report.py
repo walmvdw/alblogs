@@ -18,6 +18,8 @@ LOGGER = None
 DEFAULT_FONT = "Helvetica"
 DEFAULT_FONT_BOLD = "Helvetica-Bold"
 
+REQUEST_TYPE_MAP = {"http": "HTTP", "https": "HTTP SSL/TLS", "h2": "HTTP/2 SSL/TLS", "ws": "Websockets", "wss": "Websockets SSL/TLS"}
+
 
 class FooterCanvas(canvas.Canvas):
 
@@ -452,6 +454,21 @@ def get_status_code_stats(statsdb, datestr):
     return status_code_stats
 
 
+def get_request_type_stats(statsdb, datestr):
+    request_type_curs = statsdb.query_request_type(datestr)
+    request_type_stats = []
+
+    for row in request_type_curs:
+        stats = {"request_type": row["request_type"],
+                 "sum_request_count": row["sum_request_count"],
+                 "sum_target_processing_time": row["sum_target_processing_time"],
+                 "avg_target_processing_time": row["avg_target_processing_time"]
+                 }
+        request_type_stats.append(stats)
+
+    return request_type_stats
+
+
 def get_top_100_average_processing_time_stats(statsdb, datestr):
     url_stats_curs = statsdb.query_top_100_average_processing_time(datestr)
     url_stats = []
@@ -548,6 +565,44 @@ def generate_status_code_table(styles, target_code_stats):
     table_data.append(last_row)
 
     t = Table(table_data, colWidths=[2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
+    t.setStyle(define_url_table_style())
+
+    return t
+
+
+def generate_request_type_table(styles, request_type_stats):
+    table_data = []
+    header_row = []
+    header_row.append(Paragraph("Request Type", styles["table_header_center"]))
+    header_row.append(Paragraph("Requests", styles["table_header_center"]))
+    header_row.append(Paragraph("Time (secs)", styles["table_header_center"]))
+    header_row.append(Paragraph("Avg Time", styles["table_header_center"]))
+
+    table_data.append(header_row)
+
+    totals = {"request_count": 0, "processing_time": 0}
+    for stats in request_type_stats:
+        print(stats)
+        totals["request_count"] += stats["sum_request_count"]
+        totals["processing_time"] += stats["sum_target_processing_time"]
+
+        data_row = []
+        data_row.append(Paragraph("{}".format(REQUEST_TYPE_MAP[stats["request_type"]]), styles["table_data_left"]))
+        data_row.append(Paragraph("{:0,d}".format(stats["sum_request_count"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:0,.2f}".format(stats["sum_target_processing_time"]), styles["table_data_right"]))
+        data_row.append(Paragraph("{:0,.5f}".format(stats["avg_target_processing_time"]), styles["table_data_right"]))
+
+        table_data.append(data_row)
+
+    last_row = []
+    last_row.append(Paragraph("TOTAL", styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,d}".format(totals["request_count"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("{:0,.0f}".format(totals["processing_time"]), styles["table_data_right_bold"]))
+    last_row.append(Paragraph("", styles["table_data_right_bold"]))
+
+    table_data.append(last_row)
+
+    t = Table(table_data, colWidths=[3.5*cm, 2.5*cm, 2.5*cm, 2.5*cm, 2.5*cm])
     t.setStyle(define_url_table_style())
 
     return t
@@ -737,6 +792,18 @@ elements.append(Spacer(1, 0.5*cm))
 status_code_stats = get_status_code_stats(statsdb, args.date)
 status_code_table = generate_status_code_table(styles, status_code_stats)
 elements.append(status_code_table)
+
+# ----------------
+
+elements.append(PageBreak())
+elements.append(Paragraph("Request Types", styles["table_title"]))
+elements.append(Spacer(1, 0.5*cm))
+
+request_type_stats = get_request_type_stats(statsdb, args.date)
+request_type_table = generate_request_type_table(styles, request_type_stats)
+elements.append(request_type_table)
+
+# ----------------
 
 elements.append(PageBreak())
 elements.append(Paragraph("Top 100 requests by average processing time", styles["table_title"]))

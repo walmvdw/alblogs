@@ -95,32 +95,32 @@ LOGGER.info("Starting temp.py")
 
 #execute_parse_logs(args)
 
-execute_update_stats(args.config, "2018-07-24")
+#execute_update_stats(args.config, "2018-07-24")
 execute_create_report(args.config, "2018-07-24")
 
-execute_update_stats(args.config, "2018-07-25")
+#execute_update_stats(args.config, "2018-07-25")
 execute_create_report(args.config, "2018-07-25")
 
-execute_update_stats(args.config, "2018-07-26")
+#execute_update_stats(args.config, "2018-07-26")
 execute_create_report(args.config, "2018-07-26")
 
-execute_update_stats(args.config, "2018-07-27")
+#execute_update_stats(args.config, "2018-07-27")
 execute_create_report(args.config, "2018-07-27")
 
-execute_update_stats(args.config, "2018-07-28")
+#execute_update_stats(args.config, "2018-07-28")
 execute_create_report(args.config, "2018-07-28")
 
-execute_update_stats(args.config, "2018-07-29")
+#execute_update_stats(args.config, "2018-07-29")
 execute_create_report(args.config, "2018-07-29")
 
-execute_update_stats(args.config, "2018-07-30")
+#execute_update_stats(args.config, "2018-07-30")
 execute_create_report(args.config, "2018-07-30")
 
-execute_update_stats(args.config, "2018-07-31")
+#execute_update_stats(args.config, "2018-07-31")
 execute_create_report(args.config, "2018-07-31")
 
-execute_update_stats(args.config, "2018-08-01")
+#execute_update_stats(args.config, "2018-08-01")
 execute_create_report(args.config, "2018-08-01")
 
-execute_update_stats(args.config, "2018-08-02")
+#execute_update_stats(args.config, "2018-08-02")
 execute_create_report(args.config, "2018-08-02")

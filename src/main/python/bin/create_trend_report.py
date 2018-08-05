@@ -18,9 +18,10 @@ from reportlab.pdfgen import canvas
 
 LOGGER = None
 
-
 DEFAULT_FONT = "Helvetica"
 DEFAULT_FONT_BOLD = "Helvetica-Bold"
+
+REQUEST_TYPE_MAP = {"http": "HTTP", "https": "HTTP SSL/TLS", "h2": "HTTP/2 SSL/TLS", "ws": "Websockets", "wss": "Websockets SSL/TLS"}
 
 
 class FooterCanvas(canvas.Canvas):
@@ -283,6 +284,34 @@ def define_trend_table_style(span_groups, color_groups):
 
     table_style.add('BACKGROUND', (0, 0), (-1, 2), colors.black)
     table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
+
+    for span_group in span_groups:
+        table_style.add('SPAN', (span_group["left"], span_group["top"]), (span_group["right"], span_group["bottom"]))
+
+    for color_group in color_groups:
+        table_style.add("BACKGROUND", (color_group["col"], color_group["row"]), (color_group["col"], color_group["row"]), color_group["color"])
+    return table_style
+
+
+def define_request_type_table_style(span_groups, color_groups):
+    table_style = TableStyle()
+
+    # All rows
+    table_style.add('TOPPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('BOTTOMPADDING', (0, 0), (-1, -1), 0)
+    table_style.add('VALIGN', (0, 0), (-1, -1), "MIDDLE")
+
+    table_style.add('INNERGRID', (0, 3), (-1, -1), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 3), (-1, -1), 0.4 * mm, colors.black)
+
+    # Header row
+    # table_style.add('INNERGRID', (0, 0), (-1, 0), 0.2 * mm, colors.black)
+    table_style.add('BOX', (0, 0), (-1, 2), 0.4 * mm, colors.black)
+
+    table_style.add('BACKGROUND', (0, 0), (-1, 2), colors.black)
+    table_style.add('ALIGN', (0, 0), (-1, 0), "CENTER")
+
+    table_style.add('BOX', (0, -1), (-1, -2), 0.4 * mm, colors.black)
 
     for span_group in span_groups:
         table_style.add('SPAN', (span_group["left"], span_group["top"]), (span_group["right"], span_group["bottom"]))
@@ -804,6 +833,148 @@ def generate_date_avg_chart(url_stats, dates):
     return filename
 
 
+def query_request_type_data(statsdb, from_date, to_date, exclude_dates):
+    result_stats = {}
+    request_types = []
+    dates = []
+
+    request_types_curs = statsdb.query_request_types()
+    for row in request_types_curs:
+        request_types.append(row["request_type"])
+        result_stats[row["request_type"]] = {}
+
+    day_delta = datetime.timedelta(days=1)
+    enum_date = from_date
+    while enum_date <= to_date:
+        if enum_date not in exclude_dates:
+            dates.append(enum_date)
+
+            row_curs = statsdb.query_request_type(enum_date)
+            for row in row_curs:
+                result_stats[row["request_type"]][enum_date] = {"request_type": row["request_type"],
+                                                                "date": enum_date,
+                                                                "sum_request_count": row["sum_request_count"],
+                                                                "sum_target_processing_time": row["sum_target_processing_time"],
+                                                                "avg_target_processing_time": row["avg_target_processing_time"]}
+
+        enum_date = (datetime.datetime.strptime(enum_date, '%Y-%m-%d') + day_delta).strftime('%Y-%m-%d')
+
+    return request_types, dates, result_stats
+
+
+def generate_request_type_table(styles, request_types, request_type_dates, request_type_stats):
+    span_groups = []
+    cur_span_group = None
+
+    color_groups = []
+
+    table_data = []
+
+    header_row1 = []
+    header_row2 = []
+    header_row3 = []
+    header_row1.append(Paragraph("", style=styles["table_header_center"]))
+    header_row2.append(Paragraph("", style=styles["table_header_center"]))
+    header_row3.append(Paragraph("Request Type", style=styles["table_header_center"]))
+
+    prev_month_part = ""
+
+    widths = [4 * cm]
+
+    colnum = 1
+    for datestr in request_type_dates:
+        widths.append(2 * cm)
+        month_part = datestr[:7]
+        if month_part != prev_month_part:
+            if cur_span_group is not None:
+                cur_span_group["right"] = colnum - 1
+            cur_span_group = {"left": colnum, "top": 0, "bottom": 0}
+            span_groups.append(cur_span_group)
+            prev_month_part = month_part
+            header_row1.append(Paragraph(month_part, style=styles["table_header_left"]))
+        else:
+            header_row1.append(Paragraph("", style=styles["table_header_center"]))
+
+        header_row2.append(Paragraph(datestr[8:11], style=styles["table_header_center"]))
+        daycode = datetime.datetime.strptime(datestr, "%Y-%m-%d").strftime("%a")
+        header_row3.append(Paragraph(daycode, style=styles["table_header_center"]))
+
+        colnum += 1
+
+    cur_span_group["right"] = colnum - 1
+
+    table_data.append(header_row1)
+    table_data.append(header_row2)
+    table_data.append(header_row3)
+
+    date_totals = {}
+
+    for request_type in request_types:
+        data_row = []
+        data_row.append(Paragraph("{}".format(REQUEST_TYPE_MAP[request_type]), styles["table_data_left"]))
+        for datestr in request_type_dates:
+            date_stats = request_type_stats[request_type].get(datestr)
+            if date_stats is None:
+                data_row.append(Paragraph("{:,d}".format(0), styles["table_data_right"]))
+            else:
+                data_row.append(Paragraph("{:,d}".format(date_stats["sum_request_count"]), styles["table_data_right"]))
+                date_total = date_totals.get(datestr)
+                if date_total is None:
+                    date_totals[datestr] = date_stats["sum_request_count"]
+                else:
+                    date_totals[datestr] += date_stats["sum_request_count"]
+
+        table_data.append(data_row)
+
+    data_row = []
+    data_row.append(Paragraph("{}".format("TOTAL"), styles["table_data_right_bold"]))
+    for datestr in request_type_dates:
+        data_row.append(Paragraph("{:,d}".format(date_totals[datestr]), styles["table_data_right"]))
+    table_data.append(data_row)
+
+    t = Table(table_data, colWidths=widths)
+    t.setStyle(define_request_type_table_style(span_groups, color_groups))
+
+    return t
+
+
+def generate_request_type_chart(request_types, request_type_dates, request_type_stats):
+    fig = plt.figure(figsize=(15,7.5))
+
+    fig.set_constrained_layout({"h_pad": 0.25, "w_pad": 3.0/72.0})
+
+    ax = fig.add_subplot(111)
+
+    for request_type in request_types:
+        chart_data = []
+        for datestr in request_type_dates:
+            date_stats = request_type_stats[request_type].get(datestr)
+            if date_stats is None:
+                chart_data.append(None)
+            else:
+                chart_data.append(date_stats["sum_request_count"])
+
+        ax.plot(request_type_dates, chart_data, label=REQUEST_TYPE_MAP[request_type])
+
+    plt.xticks(request_type_dates, rotation=270)
+    plt.xlabel('Date')
+
+    plt.ylabel('Count')
+    plt.title('Request count per type')
+
+    handles, labels = ax.get_legend_handles_labels()
+
+    lgd = ax.legend(handles, labels, loc=(1.05, 0.60), )
+
+    ax.grid(True)
+
+    figfile = tempfile.NamedTemporaryFile(suffix=".png", dir=config.get_temp_dir(), delete=False)
+    plt.savefig(figfile)
+    filename = figfile.name
+    figfile.close()
+
+    return filename
+
 # ------------------------------ MAIN PROGRAM ------------------------------
 
 args = read_arguments()
@@ -887,6 +1058,8 @@ elements.append(legend_table)
 
 elements.append(PageBreak())
 
+# ----------------------------------
+
 tempfiles = []
 
 request_volume_dates, request_volume_data = query_request_volume_data(statsdb, from_date, to_date, exclude_dates)
@@ -913,6 +1086,28 @@ page_table.setStyle(define_page_table_style_no_span())
 elements.append(Paragraph("Total request volume", styles["table_title"]))
 elements.append(Spacer(1, 1 * cm))
 elements.append(page_table)
+
+elements.append(PageBreak())
+
+# ----------------------------------
+
+elements.append(Paragraph("Request Types Overview", styles["table_title"]))
+elements.append(Spacer(1, 1*cm))
+
+request_types, request_type_dates, request_type_stats = query_request_type_data(statsdb, from_date, to_date, exclude_dates)
+request_type_table = generate_request_type_table(styles, request_types, request_type_dates, request_type_stats)
+
+elements.append(request_type_table)
+elements.append(Spacer(1, 0.5*cm))
+
+request_type_chart_filename = generate_request_type_chart(request_types, request_type_dates, request_type_stats)
+request_type_chart_handle = open(request_type_chart_filename, 'rb')
+img_request_type = Image(request_type_chart_handle, width=(20 * cm), height=(10 * cm))
+
+elements.append(img_request_type)
+tempfiles.append({"name": request_type_chart_filename, "handle": request_type_chart_handle})
+
+# ----------------------------------
 
 urls = sorted(trend_data.keys())
 for url in urls:
@@ -948,9 +1143,15 @@ for url in urls:
     tempfiles.append({"name": chart_time_filename, "handle": chart_time_handle})
     tempfiles.append({"name": chart_avg_filename, "handle": chart_avg_handle})
 
+LOGGER.info("Writing PDF")
 doc.multiBuild(elements, canvasmaker=FooterCanvas)
+LOGGER.info("Finished writing PDF")
 
+LOGGER.info("Cleaning up temporary files")
 for file_rec in tempfiles:
+    LOGGER.debug("Removing temporary file '{}'".format(file_rec["name"]))
     file_rec["handle"].close()
     os.remove(file_rec["name"])
+
+LOGGER.info("Finished")
 

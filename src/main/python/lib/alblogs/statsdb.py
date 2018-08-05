@@ -9,6 +9,7 @@ sql += "INSERT INTO `stats_url`  "
 sql += "(                         `log_date_id` "
 sql += ",                         `log_hour_id` "
 sql += ",                         `log_url_id` "
+sql += ",                         `log_reqtype_id` "
 sql += ",                         `elb_status_code` "
 sql += ",                         `request_count` "
 sql += ",                         `sum_request_processing_time_sec` "
@@ -26,7 +27,7 @@ sql += ",                         `max_received_bytes` "
 sql += ",                         `sum_sent_bytes` "
 sql += ",                         `min_sent_bytes` "
 sql += ",                         `max_sent_bytes` "
-sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
+sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
 STATS_URL_INSERT_SQL = sql
 
@@ -248,6 +249,7 @@ class Database(object):
         sql += ",                         `log_date_id` INTEGER "
         sql += ",                         `log_hour_id` INTEGER "
         sql += ",                         `log_url_id` INTEGER "
+        sql += ",                         `log_reqtype_id` INTEGER "
         sql += ",                         `elb_status_code` INTEGER "
         sql += ",                         `request_count` INTEGER "
         sql += ",                         `sum_request_processing_time_sec` REAL "
@@ -392,8 +394,9 @@ class Database(object):
         log_date_id = self.get_or_add_date(record["date"])
         log_hour_id = self.get_or_add_hour(record["hour"])
         log_url_id = self.get_or_add_url(record["url"])
+        log_reqtype_id = self.get_or_add_reqtype(record["reqtype"])
 
-        self._get_cursor().execute(STATS_URL_INSERT_SQL, (log_date_id, log_hour_id, log_url_id,
+        self._get_cursor().execute(STATS_URL_INSERT_SQL, (log_date_id, log_hour_id, log_url_id, log_reqtype_id,
                                    record["elb_status_code"],
                                    record["request_count"],
                                    record["sum_request_processing_time_sec"],
@@ -621,6 +624,29 @@ class Database(object):
 
         return result
 
+    def query_request_type(self, datestr):
+        sql = """select   `rte`.`reqtype` `request_type`
+                 ,        sum(`sts`.`request_count`) `sum_request_count`
+                 ,        sum(`sts`.`sum_target_processing_time_sec`) `sum_target_processing_time`
+                 ,        sum(`sts`.`sum_target_processing_time_sec`) / sum(`sts`.`request_count`) `avg_target_processing_time`
+                 from     `stats_url` `sts`
+                 ,        `log_date` `dte`
+                 ,        `log_reqtype` `rte`
+                 where    `dte`.`id` = `sts`.`log_date_id`
+                 and      `rte`.`id` = `sts`.`log_reqtype_id`
+                 and      `dte`.`date` = ?
+                 group by `rte`.`reqtype` 
+                 order by `rte`.`reqtype`
+              """
+
+        get_log().debug("query_request_type: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_request_type")
+        result = self._get_cursor().execute(sql, (datestr, ))
+        get_log().info("END: Executing query_request_type")
+
+        return result
+
     def query_max_date(self):
         # Joins stats_status_code on log_date and finds max date for which there is data
         # stats_status_code is chosen because it is the smallest table
@@ -697,5 +723,19 @@ class Database(object):
         get_log().info("BEGIN: Executing query_url_stats_for_url_and_date_excl_5xx")
         result = self._get_cursor().execute(sql, (datestr, url))
         get_log().info("END: Executing query_url_stats_for_url_and_date_excl_5xx")
+
+        return result
+
+    def query_request_types(self):
+        sql = """select   `rte`.`reqtype` `request_type`
+                 from     `log_reqtype` `rte`
+                 order by `rte`.`reqtype`
+              """
+
+        get_log().debug("query_request_types: query = {}".format(sql))
+
+        get_log().info("BEGIN: Executing query_request_types")
+        result = self._get_cursor().execute(sql)
+        get_log().info("END: Executing query_request_types")
 
         return result
