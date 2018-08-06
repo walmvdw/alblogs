@@ -1,6 +1,7 @@
 import os.path
 import sqlite3
 import logging
+from urllib.parse import parse_qs
 
 LOGGER = None
 
@@ -40,6 +41,15 @@ sql += ",                         `actions_executed` "
 sql += ") VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);"
 
 ENTRY_INSERT_SQL = sql
+
+sql = ""
+sql += "INSERT INTO `log_query_param_value` "
+sql += "(           `log_entry_id` "
+sql += ",           `log_query_param_id` "
+sql += ",           `value` "
+sql += ") VALUES (?, ?, ?);"
+
+QUERY_PARAM_VALUE_INSERT_SQL = sql
 
 
 def get_log():
@@ -221,6 +231,26 @@ class Database(object):
         curs.execute(sql)
 
         sql = ""
+        sql += "CREATE TABLE `log_query_param` (`id` INTEGER PRIMARY KEY "
+        sql += ",                        `query_param` TEXT);"
+        curs.execute(sql)
+
+        sql = ""
+        sql += "CREATE UNIQUE INDEX `ux_log_query_param_query_param` ON `log_query_param`(`query_param`);"
+        curs.execute(sql)
+
+        sql = ""
+        sql += "CREATE TABLE `log_query_param_value` (`id` INTEGER PRIMARY KEY "
+        sql += ",                                     `log_entry_id` INTEGER "
+        sql += ",                                     `log_query_param_id` INTEGER "
+        sql += ",                                     `value` TEXT);"
+        curs.execute(sql)
+
+        sql = ""
+        sql += "CREATE UNIQUE INDEX `ux_log_query_param_value_entry_query_param` ON `log_query_param_value`(`log_entry_id`, `log_query_param_id`);"
+        curs.execute(sql)
+
+        sql = ""
         sql += "CREATE TABLE `log_entry` (`id` INTEGER PRIMARY KEY "
         sql += ",                         `log_source_id` INTEGER "
         sql += ",                         `log_reqtype_id` INTEGER "
@@ -326,6 +356,9 @@ class Database(object):
     def get_or_add_domain(self, value):
         return self._get_or_add_dimension("log_domain", "domain", value)
 
+    def get_or_add_query_param(self, value):
+        return self._get_or_add_dimension("log_query_param", "query_param", value)
+
     def save_record(self, log_source_id, record):
         log_reqtype_id = self.get_or_add_reqtype(record["type"])
         log_date_id = self.get_or_add_date(record["datepart"])
@@ -354,6 +387,20 @@ class Database(object):
                                                       record["target_status_code"], record["received_bytes"],
                                                       record["sent_bytes"], record["request_query"],
                                                       record["request_creation_time"], record["actions_executed"]))
+        log_entry_id = self._get_cursor().lastrowid
+
+        self.process_request_query(log_entry_id, record["request_query"])
+
+    def process_request_query(self, log_entry_id, request_query):
+        query_params = parse_qs(request_query, keep_blank_values=True)
+        for query_param_name in query_params.keys():
+            values = query_params[query_param_name]
+            value_string = "".join(values)
+            self.save_query_param_value(log_entry_id, query_param_name, value_string)
+
+    def save_query_param_value(self, log_entry_id, query_param_name, query_param_value):
+        log_query_param_id = self.get_or_add_query_param(query_param_name)
+        self._get_cursor().execute(QUERY_PARAM_VALUE_INSERT_SQL, (log_entry_id, log_query_param_id, query_param_value))
 
     def query_url_stats(self):
         sql = ""
