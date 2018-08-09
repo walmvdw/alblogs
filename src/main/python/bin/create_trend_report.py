@@ -378,7 +378,7 @@ def generate_trend_table(styles, trend_data, dates):
 
     prev_month_part = ""
 
-    widths = [13 * cm]
+    widths = [9 * cm]
 
     colnum = 1
     for datestr in dates:
